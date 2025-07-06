@@ -20,8 +20,21 @@ def authenticate_gmail():
         if creds and creds.expired and creds.refresh_token:
             creds.refresh(Request())
         else:
-            flow = InstalledAppFlow.from_client_secrets_file(
-                'credentials.json', SCOPES)
+            if os.path.exists('credentials.json'):
+                flow = InstalledAppFlow.from_client_secrets_file(
+                    'credentials.json', SCOPES)
+            else:
+                client_config = {
+                    "installed": {
+                        "client_id": os.getenv('GOOGLE_CLIENT_ID'),
+                        "client_secret": os.getenv('GOOGLE_CLIENT_SECRET'),
+                        "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+                        "token_uri": "https://oauth2.googleapis.com/token",
+                        "redirect_uris": ["urn:ietf:wg:oauth:2.0:oob", "http://localhost"]
+                    }
+                }
+                flow = InstalledAppFlow.from_client_config(client_config, SCOPES)
+
             creds = flow.run_local_server(port=0)
 
         with open('token.pickle', 'wb') as token:
@@ -44,15 +57,28 @@ def get_inbox_categories(service):
         print(f"Fetching {category_name} emails...")
 
         try:
-            results = service.users().messages().list(
-                userId='me',
-                q=query,
-                maxResults=1600
-            ).execute()
+            messages = []
+            next_page_token = None
 
-            messages = results.get('messages', [])
+            while True:
+                results = service.users().messages().list(
+                    userId='me',
+                    q=query,
+                    maxResults=500,  # Gmail API maximum
+                    pageToken=next_page_token
+                ).execute()
+
+                batch_messages = results.get('messages', [])
+                messages.extend(batch_messages)
+
+                next_page_token = results.get('nextPageToken')
+                if not next_page_token:
+                    break
+
+                print(f"  Fetched {len(messages)} emails so far...")
+
             all_emails[category_name] = messages
-            print(f"Found {len(messages)} emails in {category_name}")
+            print(f"Found {len(messages)} total emails in {category_name}")
 
         except Exception as e:
             print(f"Error fetching {category_name}: {e}")

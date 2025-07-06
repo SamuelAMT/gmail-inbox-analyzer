@@ -71,7 +71,7 @@ The script generates:
 ## File Structure
 
 ```
-unwanted-emails-script/
+gmail-inbox-analyzer/
 ├── script.py              # Main analyzer script
 ├── credentials.json       # OAuth credentials (keep private)
 ├── requirements.txt       # Python dependencies
